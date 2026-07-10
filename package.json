@@ -1,0 +1,14 @@
+{
+  "name": "mock-assurance-vie-api",
+  "version": "1.0.0",
+  "description": "API mock d'assurance vie : référentiel produits, règles de validation, documents requis, souscription et actes de gestion.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}

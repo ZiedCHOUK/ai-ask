@@ -1,0 +1,379 @@
+openapi: 3.1.0
+info:
+  title: Mock Assurance Vie API
+  description: >
+    API mock pour tester des scénarios d'assurance vie : référentiel de produits,
+    règles de validation, documents requis par produit, souscription et actes de
+    gestion (changement de bénéficiaires, changement d'identité bancaire, changement d'adresse).
+    Toutes les données sont fictives et stockées en mémoire (non persistées).
+  version: 1.0.0
+servers:
+  - url: https://mock-vie-api-e4aee2.fly.dev
+security:
+  - ApiKeyAuth: []
+paths:
+  /api/produits:
+    get:
+      operationId: listerProduits
+      summary: Lister les produits d'assurance vie du référentiel
+      responses:
+        '200':
+          description: Liste résumée des produits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  produits:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProduitResume'
+  /api/produits/{code}:
+    get:
+      operationId: obtenirProduit
+      summary: Obtenir le détail d'un produit (règles de validation + documents requis)
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+          example: VIE-SERENITE
+      responses:
+        '200':
+          description: Détail du produit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProduitDetail'
+        '404':
+          description: Produit introuvable
+  /api/souscriptions:
+    post:
+      operationId: creerSouscription
+      summary: Créer une souscription à un produit d'assurance vie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SouscriptionInput'
+      responses:
+        '201':
+          description: Souscription créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contrat'
+        '400':
+          description: Validation échouée (règles métier ou documents manquants)
+  /api/contrats:
+    get:
+      operationId: listerContrats
+      summary: Lister tous les contrats existants
+      responses:
+        '200':
+          description: Liste des contrats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contrats:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Contrat'
+  /api/contrats/{numeroContrat}:
+    get:
+      operationId: obtenirContrat
+      summary: Obtenir le détail d'un contrat
+      parameters:
+        - name: numeroContrat
+          in: path
+          required: true
+          schema:
+            type: string
+          example: AV-1001
+      responses:
+        '200':
+          description: Détail du contrat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contrat'
+        '404':
+          description: Contrat introuvable
+  /api/contrats/{numeroContrat}/actes:
+    get:
+      operationId: obtenirHistoriqueActes
+      summary: Obtenir l'historique des actes de gestion d'un contrat
+      parameters:
+        - name: numeroContrat
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Historique des actes de gestion
+  /api/contrats/{numeroContrat}/actes/beneficiaires:
+    post:
+      operationId: changerBeneficiaires
+      summary: Acte de gestion - changer les bénéficiaires d'un contrat
+      parameters:
+        - name: numeroContrat
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                beneficiaires:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Beneficiaire'
+              required: [beneficiaires]
+      responses:
+        '200':
+          description: Bénéficiaires mis à jour
+        '400':
+          description: Validation échouée (ex. somme des quotités != 100)
+        '404':
+          description: Contrat introuvable
+  /api/contrats/{numeroContrat}/actes/rib:
+    post:
+      operationId: changerIdentiteBancaire
+      summary: Acte de gestion - changer l'identité bancaire (RIB) d'un contrat
+      parameters:
+        - name: numeroContrat
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Rib'
+      responses:
+        '200':
+          description: Identité bancaire mise à jour
+        '400':
+          description: Validation échouée (IBAN/BIC invalide)
+        '404':
+          description: Contrat introuvable
+  /api/contrats/{numeroContrat}/actes/adresse:
+    post:
+      operationId: changerAdresse
+      summary: Acte de gestion - changer l'adresse du souscripteur d'un contrat
+      parameters:
+        - name: numeroContrat
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                adresse:
+                  $ref: '#/components/schemas/Adresse'
+              required: [adresse]
+      responses:
+        '200':
+          description: Adresse mise à jour
+        '400':
+          description: Validation échouée
+        '404':
+          description: Contrat introuvable
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+  schemas:
+    ProduitResume:
+      type: object
+      properties:
+        code:
+          type: string
+        nom:
+          type: string
+        categorie:
+          type: string
+        description:
+          type: string
+        primeMinimaleInitiale:
+          type: number
+        ageSouscriptionMin:
+          type: integer
+        ageSouscriptionMax:
+          type: integer
+    ProduitDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProduitResume'
+        - type: object
+          properties:
+            typesSupport:
+              type: array
+              items:
+                type: string
+            documentsRequis:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  libelle:
+                    type: string
+                  obligatoire:
+                    type: boolean
+                  condition:
+                    type: string
+            reglesValidation:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  description:
+                    type: string
+    Adresse:
+      type: object
+      properties:
+        ligne1:
+          type: string
+        codePostal:
+          type: string
+        ville:
+          type: string
+        pays:
+          type: string
+      required: [ligne1, codePostal, ville, pays]
+    Rib:
+      type: object
+      properties:
+        iban:
+          type: string
+        bic:
+          type: string
+        titulaire:
+          type: string
+      required: [iban, bic, titulaire]
+    Beneficiaire:
+      type: object
+      properties:
+        nom:
+          type: string
+        prenom:
+          type: string
+        lienParente:
+          type: string
+        quotite:
+          type: number
+          description: Pourcentage attribué au bénéficiaire (la somme sur tous les bénéficiaires doit être 100)
+      required: [nom, prenom, quotite]
+    PieceIdentite:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [CNI, PASSEPORT]
+        numero:
+          type: string
+        dateExpiration:
+          type: string
+          format: date
+      required: [numero, dateExpiration]
+    Souscripteur:
+      type: object
+      properties:
+        civilite:
+          type: string
+        nom:
+          type: string
+        prenom:
+          type: string
+        dateNaissance:
+          type: string
+          format: date
+        email:
+          type: string
+        telephone:
+          type: string
+        adresse:
+          $ref: '#/components/schemas/Adresse'
+        pieceIdentite:
+          $ref: '#/components/schemas/PieceIdentite'
+        personnePolitiquementExposee:
+          type: boolean
+      required: [nom, prenom, dateNaissance, email, adresse, pieceIdentite]
+    SouscriptionInput:
+      type: object
+      properties:
+        produitCode:
+          type: string
+          example: VIE-SERENITE
+        souscripteur:
+          $ref: '#/components/schemas/Souscripteur'
+        primeInitiale:
+          type: number
+        modeVersement:
+          type: string
+          enum: [unique, programme]
+        profilRisque:
+          type: string
+          enum: [prudent, equilibre, dynamique]
+        beneficiaires:
+          type: array
+          items:
+            $ref: '#/components/schemas/Beneficiaire'
+        rib:
+          $ref: '#/components/schemas/Rib'
+        documentsFournis:
+          type: array
+          items:
+            type: string
+          description: Liste des codes de documents fournis (voir documentsRequis du produit)
+      required: [produitCode, souscripteur, primeInitiale, beneficiaires, rib, documentsFournis]
+    Contrat:
+      type: object
+      properties:
+        numeroContrat:
+          type: string
+        produitCode:
+          type: string
+        produitNom:
+          type: string
+        statut:
+          type: string
+          enum: [VALIDE, EN_ATTENTE_VALIDATION_CONFORMITE]
+        dateSouscription:
+          type: string
+          format: date-time
+        souscripteur:
+          $ref: '#/components/schemas/Souscripteur'
+        primeInitiale:
+          type: number
+        beneficiaires:
+          type: array
+          items:
+            $ref: '#/components/schemas/Beneficiaire'
+        rib:
+          $ref: '#/components/schemas/Rib'
+        historiqueActesGestion:
+          type: array
+          items:
+            type: object
