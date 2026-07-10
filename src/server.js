@@ -22,6 +22,10 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/', (req, res) => {
+  res.json({ statut: 'OK', service: 'mock-assurance-vie-api', documentation: '/openapi.yaml' });
+});
+
 app.get('/health', (req, res) => {
   res.json({ statut: 'OK', service: 'mock-assurance-vie-api' });
 });
